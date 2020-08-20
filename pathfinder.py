@@ -47,7 +47,10 @@ class Cubes:
         return self.color == TURQUOISE
 
     def reset(self):
-        self.color == WHITE
+        self.color = WHITE
+
+    def make_start(self):
+        self.color = ORANGE
 
     def make_closed(self):
         self.color = RED
@@ -105,3 +108,53 @@ def draw(win, grid, rows, width):
 
     draw_grid(win, rows, width)
     pygame.display.update()
+
+def get_clicked_position(pos, rows, width):
+    gap = width // rows
+    x, y = pos
+
+    col = x // gap
+    row = y // gap
+
+    return col, row
+
+def main(win, width):
+    ROWS = 50
+    grid = make_grid(ROWS, width)
+
+    start = None
+    end = None
+
+    run = True
+    started = False
+    while run:
+        draw(win, grid, ROWS, width)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            if started:
+                continue
+            if pygame.mouse.get_pressed()[0]: #if the left mouse button is pressed, first click = start, second click = end, rest = black barriers
+                pos = pygame.mouse.get_pos()
+                row, col = get_clicked_position(pos, ROWS, width)
+                cube = grid[row][col]
+                if not start and cube != end: #can't put start and end in same position
+                    start = cube
+                    start.make_start()
+                elif not end and cube != start:
+                    end = cube
+                    end.make_end()
+                elif cube != end and cube != start:
+                    cube.make_barrier()
+            elif pygame.mouse.get_pressed()[2]: #if the right mouse button is pressed reset the colour of the cube
+                pos = pygame.mouse.get_pos()
+                row, col = get_clicked_position(pos, ROWS, width)
+                cube = grid[row][col]
+                cube.reset()
+                if cube == start:
+                    start = None
+                elif cube == end:
+                    end = None
+    pygame.quit()
+
+main(WIN, WIDTH)
