@@ -28,7 +28,7 @@ class Cubes:
         self.width = width
         self.total_rows = total_rows
 
-    def get_postion(self):
+    def get_position(self):
         return self.row, self.col
 
     def is_closed(self): #i.e not looking at this cube anymore
@@ -70,8 +70,20 @@ class Cubes:
     def draw(self, win):
         pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.width))
 
-    def update_neighbour(self, grid):
-        pass
+    def update_neighbours(self, grid): #check cube above, below, left and right to see if they can be traversed
+        self.neighbours = []
+        if self.row < self.total_rows - 1 and not grid[self.row + 1][self.col].is_barrier():  #check cube below
+            self.neighbours.append(grid[self.row + 1][self.col])
+
+        if self.row > 0 and not grid[self.row - 1][self.col].is_barrier():  #check cube above
+            self.neighbours.append(grid[self.row - 1][self.col])
+
+        if self.col < self.total_rows - 1 and not grid[self.row][self.col + 1].is_barrier():  #check cube right
+            self.neighbours.append(grid[self.row][self.col + 1])
+
+        if self.col > 0 and not grid[self.row][self.col - 1].is_barrier():  #check cube left
+            self.neighbours.append(grid[self.row][self.col - 1])
+
 
     def __lt__(self, other): #compare cubes to each other
         return False
@@ -80,6 +92,51 @@ def h(p1, p2): #heuristic function using point 1 and point 2 using Manhatten dis
     x1, y1 = p1
     x2, y2 = p2
     return abs(x1 - x2) + abs(y1 - y2)
+
+def algorithm(draw, grid, start, end): #A* Algorithm for pathfinding
+    count = 0
+    open_set = PriorityQueue()
+    open_set.put((0, count, start))
+    came_from = {}
+    g_score = {cube: float("inf") for row in grid for cube in row} #keep track of current shortest distance
+    g_score[start] = 0
+    f_score = {cube: float("inf") for row in grid for cube in row} #keeps track of predicted distance from this node to end node
+    f_score[start] = h(start.get_position(), end.get_position())
+
+    open_set_hash = {start}
+
+    while not open_set.empty():
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+
+        current = open_set.get()[2]
+        open_set_hash.remove(current)
+
+        if current == end:
+            #make path
+            return True
+
+        for neighbour in current.neighbours:
+            temp_g_score = g_score[current] + 1
+
+            if temp_g_score < g_score[neighbour]:
+                came_from[neighbour] = current
+                g_score[neighbour] = temp_g_score
+                f_score[neighbour] = temp_g_score + h(neighbour.get_position(), end.get_position())
+                if neighbour not in open_set_hash:
+                    count += 1
+                    open_set.put((f_score[neighbour], count, neighbour))
+                    open_set_hash.add(neighbour)
+                    neighbour.make_open()
+
+        draw()
+
+        if current != start:
+            current.make_closed()
+
+    return False
+
 
 def make_grid(rows, width):
     grid = []
@@ -126,14 +183,12 @@ def main(win, width):
     end = None
 
     run = True
-    started = False
     while run:
         draw(win, grid, ROWS, width)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-            if started:
-                continue
+
             if pygame.mouse.get_pressed()[0]: #if the left mouse button is pressed, first click = start, second click = end, rest = black barriers
                 pos = pygame.mouse.get_pos()
                 row, col = get_clicked_position(pos, ROWS, width)
@@ -155,6 +210,13 @@ def main(win, width):
                     start = None
                 elif cube == end:
                     end = None
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and start and end:
+                    for row in grid:
+                        for cube in row:
+                            cube.update_neighbours(grid)
+
+                    algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
     pygame.quit()
 
 main(WIN, WIDTH)
